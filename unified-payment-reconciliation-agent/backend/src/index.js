@@ -51,9 +51,8 @@ if (srvKey && srvKey === process.env.SUPABASE_ANON_KEY) {
 }
 
 console.log('✅ Env vars: SUPABASE_URL ✓  Supabase key ✓  GEMINI_API_KEY ✓');
-console.log(`   [DEBUG] Runtime SUPABASE_URL: "${process.env.SUPABASE_URL}"`);
-const activeKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
-console.log(`   [DEBUG] Runtime Supabase Key length: ${activeKey.length}, prefix: "${activeKey.slice(0, 6)}...", suffix: "...${activeKey.slice(-6)}"`);
+
+// ── 2. Import routes AFTER env is confirmed valid ────────────────────────────
 const webhookRoutes  = require('./routes/webhook');
 const uploadRoutes   = require('./routes/upload');
 const reconcileRoutes = require('./routes/reconcile');
