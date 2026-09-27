@@ -93,34 +93,44 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // ── Start + table probe ───────────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`✅ Unified Stream backend running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`✅ Unified Stream backend running on http://0.0.0.0:${PORT}`);
   console.log(`   Gemini model: ${process.env.GEMINI_MODEL || 'gemini-3.8-flash'}`);
   console.log('   Routes: /webhooks /upload /reconcile /agent /health');
 
-  // 3. Probe Supabase — confirms the schema has been applied and the
-  //    credentials are live (not just syntactically valid).
-  try {
-    const { error } = await supabase
-      .from('reconciliation_runs')
-      .select('id')
-      .limit(1);
+  // 3. Probe Supabase with retries (3 attempts, 2s delay)
+  const probeDatabase = async (attempt = 1, maxAttempts = 3) => {
+    try {
+      const { error } = await supabase
+        .from('reconciliation_runs')
+        .select('id')
+        .limit(1);
 
-    if (error) {
-      if (error.message?.includes('does not exist') || error.code === '42P01') {
-        console.error('\n⚠️  DB PROBE FAILED — table "reconciliation_runs" not found.');
-        console.error('   Run data/schemas/supabase_schema.sql in your Supabase SQL editor.');
-        console.error('   Dashboard → SQL Editor → paste the file → Run.\n');
+      if (error) {
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          console.error(`\n⚠️  DB PROBE FAILED (Attempt ${attempt}/${maxAttempts}) — table "reconciliation_runs" not found.`);
+        } else {
+          console.error(`\n⚠️  DB PROBE ERROR (Attempt ${attempt}/${maxAttempts}): ${error.message} (code: ${error.code})`);
+        }
+        if (attempt < maxAttempts) {
+          console.log(`   Retrying DB probe in 2s...`);
+          await new Promise((r) => setTimeout(r, 2000));
+          return probeDatabase(attempt + 1, maxAttempts);
+        }
       } else {
-        console.error(`\n⚠️  DB PROBE ERROR: ${error.message} (code: ${error.code})\n`);
+        console.log('   Supabase: reconciliation_runs table found ✓');
       }
-    } else {
-      console.log('   Supabase: reconciliation_runs table found ✓');
+    } catch (e) {
+      console.error(`\n⚠️  Supabase connectivity failed (Attempt ${attempt}/${maxAttempts}): ${e.message}`);
+      if (attempt < maxAttempts) {
+        console.log(`   Retrying DB probe in 2s...`);
+        await new Promise((r) => setTimeout(r, 2000));
+        return probeDatabase(attempt + 1, maxAttempts);
+      }
     }
-  } catch (e) {
-    console.error(`\n⚠️  Supabase connectivity failed: ${e.message}`);
-    console.error('   Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env\n');
-  }
+  };
+
+  await probeDatabase();
 });
 
 module.exports = app;
