@@ -47,20 +47,30 @@ Additionally, on a new line starting with "Action:", suggest one concrete
 recommended_action (max 15 words) that the MSME finance team should take
 to resolve this discrepancy.`;
 
-  const result  = await model.generateContent(fullPrompt);
-  const raw     = result.response.text().trim();
+  try {
+    const result  = await model.generateContent(fullPrompt);
+    const raw     = result.response.text().trim();
 
-  // Split explanation from the "Action:" suffix
-  const actionMatch = raw.match(/\n?Action:\s*(.+)/s);
-  const explanation = actionMatch
-    ? raw.slice(0, raw.indexOf('\n\nAction:')).trim() ||
-      raw.slice(0, raw.indexOf('\nAction:')).trim()
-    : raw;
-  const recommended_action = actionMatch
-    ? actionMatch[1].trim()
-    : 'Review transaction with payment gateway and settlement team.';
+    // Split explanation from the "Action:" suffix
+    const actionMatch = raw.match(/\n?Action:\s*(.+)/s);
+    const explanation = actionMatch
+      ? raw.slice(0, raw.indexOf('\n\nAction:')).trim() ||
+        raw.slice(0, raw.indexOf('\nAction:')).trim()
+      : raw;
+    const recommended_action = actionMatch
+      ? actionMatch[1].trim()
+      : 'Review transaction with payment gateway and settlement team.';
 
-  return { explanation, recommended_action };
+    return { explanation, recommended_action };
+  } catch (err) {
+    console.warn(`⚠️  Gemini explainer error: ${err.message}. Using structured fallback.`);
+    const reason = row.discrepancy_details?.reason || `${row.status} transaction`;
+    const delta = row.amount_delta !== undefined && row.amount_delta !== null ? ` with delta of ₹${Math.abs(row.amount_delta)}` : '';
+    return {
+      explanation: `Discrepancy detected for transaction ${row.transaction_id}: ${reason}${delta}. Webhook amount: ₹${row.webhook_amount ?? 'N/A'}, Settlement amount: ₹${row.settlement_amount ?? 'N/A'}.`,
+      recommended_action: 'Verify gateway settlement report and adjust merchant ledger entries.'
+    };
+  }
 }
 
 module.exports = { explainResult };
