@@ -1,0 +1,184 @@
+{
+  "name": "Unified Stream — Payment Reconciliation Orchestration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dodo-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Dodo Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Receives Dodo Payments webhook events via Standard Webhooks spec.\nRegister this URL in: Dodo Dashboard → Developer → Webhooks → Add endpoint\nURL: https://<your-n8n-host>/webhook/dodo-webhook\n\nDodo will POST events with headers: webhook-id, webhook-timestamp, webhook-signature"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── Normalize Dodo webhook payload ────────────────────────────────────────\n// Extracts only the fields that map to our live dodo_payments table:\n//   payment_id, amount, currency, status, payment_method,\n//   merchant_order_id, customer\n//\n// IMPORTANT: Dodo sends amounts in minor units (paise for INR).\n//   ₹15.00 comes in as 1500 — we divide by 100 here.\n//\n// The backend /webhooks/dodo will perform the actual upsert, so this\n// node just passes the raw event through with the svix/webhook headers\n// preserved for signature verification.\n\nconst body = $input.item.json.body;\nconst headers = $input.item.json.headers;\n\n// Pass event through — backend handles normalization and DB insert\nreturn [{\n  json: {\n    // Forward the raw event body as-is (backend verifies signature)\n    rawEvent: body,\n    // Forward webhook signature headers so backend can verify\n    forwardHeaders: {\n      'webhook-id':        headers['webhook-id']        || headers['svix-id']        || '',\n      'webhook-timestamp': headers['webhook-timestamp'] || headers['svix-timestamp'] || '',\n      'webhook-signature': headers['webhook-signature'] || headers['svix-signature'] || '',\n    },\n    // Surface event type for n8n logging\n    eventType: body.type || 'unknown',\n    paymentId: (body.data || body).payment_id || null,\n  }\n}];\n"
+      },
+      "id": "normalize-payload",
+      "name": "Normalize Dodo Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Extracts event metadata and passes raw body + signature headers forward.\nThe backend /webhooks/dodo endpoint handles normalization and DB insert.\nRelevant events: payment.succeeded, payment.failed, payment.refunded, payment.cancelled"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/webhooks/dodo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "webhook-id",
+              "value": "={{ $json.forwardHeaders['webhook-id'] }}"
+            },
+            {
+              "name": "webhook-timestamp",
+              "value": "={{ $json.forwardHeaders['webhook-timestamp'] }}"
+            },
+            {
+              "name": "webhook-signature",
+              "value": "={{ $json.forwardHeaders['webhook-signature'] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.rawEvent) }}",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "id": "forward-to-backend",
+      "name": "POST /webhooks/dodo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "notes": "Forwards the raw Dodo event + Standard Webhooks headers to the backend.\nThe backend verifies the signature, normalizes the payload, and upserts\ninto dodo_payments (onConflict: payment_id).\n\nFor local dev replace localhost:4000 with your tunnel URL (ngrok, cloudflared, etc.)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.processed }}",
+              "operation": "equals",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "check-processed",
+      "name": "Was Payment Stored?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300],
+      "notes": "Only trigger reconciliation if the backend successfully stored the payment.\nIf the event type was ignored (e.g. payment.processing), skip reconciliation."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/reconcile/run",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "triggered_by": "webhook"
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "trigger-reconciliation",
+      "name": "POST /reconcile/run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 220],
+      "notes": "Triggers a full deterministic reconciliation run after each webhook.\nTimeout is 60s — reconciliation against large datasets may take a few seconds.\nThe run result (MATCHED/MISMATCHED/MISSING/DUPLICATE counts) will appear\nin the dashboard at http://localhost:5173/"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"received\": true, \"event\": $('Normalize Dodo Payload').item.json.eventType, \"payment_id\": $('Normalize Dodo Payload').item.json.paymentId } }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "webhook-response",
+      "name": "Return 200 to Dodo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 380],
+      "notes": "Must respond 200 within 5 seconds or Dodo will mark the delivery as failed and retry.\nThis node fires immediately — reconciliation runs asynchronously after."
+    }
+  ],
+  "connections": {
+    "Dodo Webhook Trigger": {
+      "main": [
+        [{ "node": "Normalize Dodo Payload", "type": "main", "index": 0 }]
+      ]
+    },
+    "Normalize Dodo Payload": {
+      "main": [
+        [{ "node": "POST /webhooks/dodo", "type": "main", "index": 0 }]
+      ]
+    },
+    "POST /webhooks/dodo": {
+      "main": [
+        [{ "node": "Was Payment Stored?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Was Payment Stored?": {
+      "main": [
+        [{ "node": "POST /reconcile/run",    "type": "main", "index": 0 }],
+        [{ "node": "Return 200 to Dodo",     "type": "main", "index": 0 }]
+      ]
+    },
+    "POST /reconcile/run": {
+      "main": [
+        [{ "node": "Return 200 to Dodo", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "unified-stream-v2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "unified-stream-local"
+  },
+  "id": "unified-stream-recon-workflow",
+  "tags": ["unified-stream", "hackathon", "payments", "reconciliation", "dodo"]
+}

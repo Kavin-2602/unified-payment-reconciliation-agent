@@ -1,0 +1,94 @@
+{
+  "name": "Unified Stream — Payment Reconciliation Orchestration",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dodo-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Dodo Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "notes": "Receives Dodo Payments webhook events.\nSet this URL in your Dodo dashboard: https://your-n8n.app/webhook/dodo-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/webhooks/dodo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "svix-id", "value": "={{ $json[\"headers\"][\"svix-id\"] }}" },
+            { "name": "svix-timestamp", "value": "={{ $json[\"headers\"][\"svix-timestamp\"] }}" },
+            { "name": "svix-signature", "value": "={{ $json[\"headers\"][\"svix-signature\"] }}" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "options": {
+          "bodyContentType": "raw",
+          "rawContentType": "application/json"
+        }
+      },
+      "id": "forward-to-backend",
+      "name": "Forward to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [480, 300],
+      "notes": "Forwards the webhook with original Dodo signature headers to the backend."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:4000/reconcile/run",
+        "options": {}
+      },
+      "id": "trigger-reconciliation",
+      "name": "Trigger Reconciliation Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [720, 300],
+      "notes": "After storing the payment, trigger a reconciliation run automatically."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"received\": true } }}"
+      },
+      "id": "webhook-response",
+      "name": "Return 200 to Dodo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [960, 300],
+      "notes": "Always respond 200 quickly. Dodo will retry if no 2xx received within 5 seconds."
+    }
+  ],
+  "connections": {
+    "Dodo Webhook Trigger": {
+      "main": [[{ "node": "Forward to Backend", "type": "main", "index": 0 }]]
+    },
+    "Forward to Backend": {
+      "main": [[{ "node": "Trigger Reconciliation Run", "type": "main", "index": 0 }]]
+    },
+    "Trigger Reconciliation Run": {
+      "main": [[{ "node": "Return 200 to Dodo", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "unified-stream-v1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "unified-stream-recon-workflow",
+  "tags": ["unified-stream", "hackathon", "payments", "reconciliation"]
+}

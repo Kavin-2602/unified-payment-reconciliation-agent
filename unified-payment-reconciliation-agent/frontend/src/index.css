@@ -1,0 +1,218 @@
+/* ============================================================
+   Unified Stream · Global Design System
+   ============================================================ */
+
+/* ── Fonts ─────────────────────────────────────────────────── */
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* ── Color palette ──────────────────────────────────────── */
+  --color-bg-base:       #0a0d14;
+  --color-bg-surface:    #111827;
+  --color-bg-elevated:   #1c2433;
+  --color-bg-card:       #1e2738;
+  --color-border:        rgba(255, 255, 255, 0.08);
+  --color-border-hover:  rgba(255, 255, 255, 0.16);
+
+  /* Brand */
+  --color-primary:       #6366f1;   /* indigo */
+  --color-primary-glow:  rgba(99, 102, 241, 0.25);
+  --color-accent:        #22d3ee;   /* cyan */
+
+  /* Text */
+  --color-text-primary:  #f1f5f9;
+  --color-text-secondary:#94a3b8;
+  --color-text-muted:    #475569;
+
+  /* Status colors */
+  --color-matched:       #10b981;   /* emerald */
+  --color-matched-bg:    rgba(16, 185, 129, 0.12);
+  --color-mismatched:    #f59e0b;   /* amber */
+  --color-mismatched-bg: rgba(245, 158, 11, 0.12);
+  --color-missing:       #ef4444;   /* red */
+  --color-missing-bg:    rgba(239, 68, 68, 0.12);
+  --color-duplicate:     #a855f7;   /* purple */
+  --color-duplicate-bg:  rgba(168, 85, 247, 0.12);
+
+  /* Spacing */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Shadows */
+  --shadow-card:  0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px var(--color-border);
+  --shadow-glow:  0 0 32px var(--color-primary-glow);
+
+  /* Transitions */
+  --transition-fast:  150ms ease;
+  --transition-base:  250ms ease;
+}
+
+/* ── Reset ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { color-scheme: dark; }
+
+body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-base); }
+::-webkit-scrollbar-thumb { background: var(--color-border-hover); border-radius: 3px; }
+
+/* ── Layout utilities ───────────────────────────────────────── */
+.container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: var(--space-2); }
+.gap-4 { gap: var(--space-4); }
+.gap-6 { gap: var(--space-6); }
+
+/* ── Status badge ───────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.badge--matched   { color: var(--color-matched);   background: var(--color-matched-bg); }
+.badge--mismatched{ color: var(--color-mismatched); background: var(--color-mismatched-bg); }
+.badge--missing   { color: var(--color-missing);   background: var(--color-missing-bg); }
+.badge--duplicate { color: var(--color-duplicate); background: var(--color-duplicate-bg); }
+
+/* ── Card ───────────────────────────────────────────────────── */
+.card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-6);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--color-border-hover);
+}
+
+/* ── Button ─────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 0 20px var(--color-primary-glow);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 30px var(--color-primary-glow);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover {
+  border-color: var(--color-border-hover);
+  background: var(--color-bg-card);
+}
+
+/* ── Mono text (for transaction IDs, amounts) ───────────────── */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+}
+
+/* ── Loading spinner ────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Fade in ─────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+/* ── Slide up (modal) ────────────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Stat card hover lift ────────────────────────────────── */
+.stat-card {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--color-border-hover);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px var(--color-border-hover);
+}
+
+/* ── Checklist card ──────────────────────────────────────── */
+.checklist-card {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-card), 0 0 24px rgba(99,102,241,0.12);
+}

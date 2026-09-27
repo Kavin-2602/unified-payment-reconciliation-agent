@@ -1,0 +1,5 @@
+transaction_id,merchant_order_id,amount,currency,payment_method,status,settlement_date
+pay_bank_001,ORD-4001,25000.00,INR,bank,settled,2026-09-25
+pay_bank_002,ORD-4002,18750.00,INR,bank,settled,2026-09-25
+pay_bank_mismatch,ORD-4003,9800.00,INR,bank,settled,2026-09-25
+pay_bank_004,ORD-4004,32000.00,INR,bank,settled,2026-09-25

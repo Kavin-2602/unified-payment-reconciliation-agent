@@ -1,0 +1,9 @@
+transaction_id,merchant_order_id,amount,currency,payment_method,status,settlement_date
+pay_matched_001,ORD-1001,1500.00,INR,upi,settled,2026-09-26
+pay_matched_002,ORD-1002,2200.00,INR,upi,settled,2026-09-26
+pay_matched_003,ORD-1003,850.00,INR,upi,settled,2026-09-26
+pay_mismatch_001,ORD-1004,1099.00,INR,upi,settled,2026-09-26
+pay_mismatch_002,ORD-1005,3450.00,INR,upi,settled,2026-09-26
+pay_duplicate_001,ORD-1007,500.00,INR,upi,settled,2026-09-26
+pay_duplicate_001,ORD-1007,500.00,INR,upi,settled,2026-09-26
+pay_extra_settlement,ORD-9999,200.00,INR,upi,settled,2026-09-26

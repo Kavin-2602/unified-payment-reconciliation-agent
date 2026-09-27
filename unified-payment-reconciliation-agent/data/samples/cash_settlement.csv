@@ -1,0 +1,4 @@
+transaction_id,merchant_order_id,amount,currency,payment_method,status,settlement_date
+pay_cash_001,ORD-3001,300.00,INR,cash,settled,2026-09-26
+pay_cash_002,ORD-3002,450.00,INR,cash,settled,2026-09-26
+pay_cash_003,ORD-3003,1200.00,INR,cash,settled,2026-09-26
